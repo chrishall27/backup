@@ -6,9 +6,6 @@ ssh admin@uphaanptp001
 #Accelerator node version
 sudo service avagent status
 
-#Add single user to Avamar grid
-mccli user add --authenticator=Axion --client-domain=/CSCi/GCARS --name=avamaruser --password=abc123 --password-confirm=abc123 --role=Administrator
-
 #mapall prerequisite - loading the keys
 ssh-agent bash
 ssh-add ~/.ssh/dpnid 
