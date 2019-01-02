@@ -1,0 +1,26 @@
+#Autosupport config
+autosupport show schedule
+autosupport set schedule alert-summary daily 0800
+autosupport set schedule asup-detailed daily 0600
+autosupport add asup-detailed emails email@domain.com
+autosupport del asup-detailed emails email@domain.com
+
+#SFS Dump
+se sfs_dump /data/col1/mtreename > sfsdump.out
+
+#Support bundle & core file location
+/dd/datadomainname/ddvar/support
+/dd/datadomainname/ddvar/core
+
+#Telnet
+system show serialno
+priv set se
+#system password = serial no.
+se telnet #<server>  <port>
+
+#Upgrade
+system upgrade #<RPM name>
+#System upgrade status
+fi st
+df
+uname
