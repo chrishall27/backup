@@ -46,14 +46,72 @@ his output.txt
 #Backup Report List and Retentions
 mccli backup show --verbose --name=
 
+#Billing Script (admin only)
+/usr/local/avamar/bin/client_usage.pl
+
+#Bring Avamar into a controlled state
+dpnctl stop maint
+dpnctl stop sched
+avmaint suspend
+avmaint config --ava asynccrunching=false
+avmaint config --ava indexcacheallowed=0
+suspend crons
+dpnctl status
+avmaint config --ava cpmostrecent=1
+avmaint rmcp --ava --full
+
+#Capacity management and change rates
+capacity.sh --gb --top=15 --days=30
+
+#Check freespace on Avamar filesystems
+df -h
+sudo du -h -x --max-depth=1 /data01/home/admin
+
+#Check latest version of Linux OS security rollup applied to a grid
+uname -a
+
+#Configure Grid so operators can perform restores
+cd /usr/local/avamar/var/mc/server_data/prefs
+cp mcserver.xml x-mcserver.xml-backup
+vi mcserver.xml
+
+grep -i "restores" /usr/local/avamar/var/mc/server_data/prefs/mcserver.xml
+#<entry key="admin_can_direct_restores" value="true" />
+#<entry key="restore_admin_can_direct_restores" value="true" /> 
+#Restart MCS after editing "mcserver.xml"
+dpnctl stop mcs
+dpnctl start mcs
+dpnctl start sched
+dpnctl status  
+
 #Dataset modifications
 #Windows 2003 system state backup and logs to alternate drive
 systemstatefile=D:\avamar\systemstate.bkf
 vardir=D:\avamar\var
 
+#Downloading Avamar upgrade packages from EMC repository
+curl --disable-eprt -P - -O ftp://avamar_ftp:anonymous@ftp.emc.com/xyz.avp
+md5sum -c xyz.avp.md5sum
+cp xyz.avp /data01/avamar/repo/packages/
+
+#Garbage collection
+avmaint garbagecollect --maxtime=14400 --ava
+
+#Installing Avamar Client Installers from SFTP - go to the appropriate directory:
+cd /usr/local/avamar/src
+cd /data01/avamar/repo/packages
+#Login to SFTP from Avamar
+#Grab multiple files with
+mget *
+
+#Java issues - as root, remove java_pid#####.hprof from /usr/local/avamar
+
 #mapall prerequisite - loading the keys
 ssh-agent bash
 ssh-add ~/.ssh/dpnid 
+
+#Node utilizations
+avmaint nodelist | egrep 'nodetag|fs-percent-full'
 
 #Proxycp.jar
 chmod +x proxycp.jar
@@ -72,6 +130,25 @@ ssh-agent bash
 cat ALLBACKUPS_DEL.txt
 cat ALLBACKUPS_REPLICATE.txt
 sudo ./proxycp.jar --help
+
+#Replication check
+grep avamarhostname /etc/hosts | while read IP FQN HOST; 
+do echo "$IP $FQN $HOST" $(ping -c4 $IP | grep -i pack)
+ip route get $IP
+PAGEPORT=29000
+if telnet $PAGEADDRESS $PAGEPORT </dev/null 2>&1 | grep -q Connected; then
+echo telnet to port $PAGEPORT is alive ;
+else
+echo "telnet to port $PAGEPORT is dead"
+fi
+PAGEPORT=27000
+if telnet $PAGEADDRESS $PAGEPORT </dev/null 2>&1 | grep -q Connected; then
+echo telnet to port $PAGEPORT is alive ;
+else
+echo "telnet to port $PAGEPORT is dead"
+fi
+done  
+
 
 #Sourcing the Avamar functions script
 source /home/admin/bin/avamar_functions.sh
