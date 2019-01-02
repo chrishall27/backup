@@ -100,13 +100,162 @@ cp -R source destination
 systemstatefile=D:\avamar\systemstate.bkf
 vardir=D:\avamar\var
 
+#Decipher Avamar passwords
+cd /usr/local/avamar/var/mc/server_data/prefs/
+ls -lrth
+cp -p mcserver.xml mcserver_old.xml
+mccipher decrypt --all
+grep ap mcserver.xml
+mccipher encrypt –all
+
+#Delete backups from Avamar grid
+grep xyz ALL_clients.txt | while read client ; 
+  do  
+  echo $client; 
+  mccli backup show --verbose --name=$client | grep Avamar  | while read  DATE TIME ZONE LABEL SIZE  OTHER;
+   do    echo "$DATE $TIME $ZOME $LABEL $SIZE $OTHER";    
+   echo "mccli backup delete  --labelNum=$LABEL --force=true --created=$DATE  --name=$client";   
+   done;
+  done | tee abc_date_$$.txt 
+  
+  Look at output
+  grep 'labelNum=1 ' abc_date_$$.txt > abc.sh;chmod 700 abc.sh;./abc.sh
+
+#Determine Avamar generation
+ssh-agent bash
+ssh-add ~/.ssh/dpnid
+mapall --noerror --quiet --all+ --user=root /usr/bin/ipmitool fru print 0 | grep 'Product Part Number'
+
+#Disk rebuild status
+ssh root@IP
+omreport storage pdisk controller=0 | egrep -i "name|state|progress"
+
+watch -d 'omreport storage pdisk controller=0 pdisk=0:0:2'
+
+avsysreport pdisk | egrep 'Status|Slot Number|Enclosure Device'
+avsysreport pdisk pdisk=8:0 
+– Enclosure 8, Slot 0
+
+avsysreport pdisk pdisk=20:6 | egrep 'Status|Slot Number|Enclosure Device|Rebuild Progress'
+
+#Gen4
+Check disk rebuild status 
+ssh-agent bash
+ssh-add ~admin/.ssh/dpnid
+mapall --noerror --user=root 'grep -i "remove\|insert\|rebuild" /var/log/messages'
+mapall --noerror 'omreport storage pdisk controller=0 | grep "Status\|State"'
+
+#GEN4s
+ssh-agent bash
+ssh-add ~admin/.ssh/dpnid
+mapall --noerror --user=root 'grep -i "remove\|insert\|rebuild" /var/log/messages'
+mapall --noerror 'avsysreport pdisk controller=0 | grep "Status\|State"'  
+
+#Display all backups for all servers on the grid
+#(Does not include MC_RETIRED or REPLICATE domain)
+#Generate a client list.
+
+backuphistory () {
+for i in `[ -f $* ] && cat $* || echo  $*`
+do
+echo "********* $i *********"
+/usr/local/avamar/bin/mccli backup show --verbose --name=$i|sed '1,1d'
+done
+}
+
+source /home/admin/bin/avamar_functions.sh
+cl
+
+backuphistory Clients_2016***.txt > backuphistory.txt
+
+#This includes MC_RETIRED
+backuphistory () {
+for i in `[ -f $* ] && cat $* || echo  $*`
+do
+echo "********* $i *********"
+/usr/local/avamar/bin/mccli backup show --verbose --name=$i|sed '1,1d'
+done
+}
+
+backuphistory ALL_clients_combined.txt > backuphistory.txt
+cat backuphistory.txt
+
+/home/admin/bin/send_backup_coreteam_mailbox.pl /home/admin/backuphistory.txt emailsubject
+
+#Display route info on all nodes
+source /home/admin/bin/avamar_functions.sh 
+rt
+
+#Download Avamar clients from grid
+wget --no-check-certificate https://avamargridname.com/DPNInstalls/downloads/RHEL5-X86_64/AvamarClient-linux-rhel4-x86_64-7.1.101-145.rpm
+wget --no-check-certificate https://avamargridname.com/DPNInstalls/downloads/WIN32//AvamarClient-windows-x86-6.0.102-156.msi
+wget --no-check-certificate https://avamargridname.com/DPNInstalls/downloads/RHEL6-X86_64//AvamarClient-linux-sles11-x86_64-7.2.101-32.rpm
+
 #Downloading Avamar upgrade packages from EMC repository
 curl --disable-eprt -P - -O ftp://avamar_ftp:anonymous@ftp.emc.com/xyz.avp
 md5sum -c xyz.avp.md5sum
 cp xyz.avp /data01/avamar/repo/packages/
 
+#DRAC IP Addresses
+ssh-agent bash
+ssh-add ~/.ssh/dpnid
+mapall --noerror --user=root --nodes=all+ --quiet 'echo `hostname`'" - iDRAC "'`racadm getniccfg | grep "IP Address "`'
+
+#RMM4
+ssh-agent bash
+ssh-add ~/.ssh/dpnid
+mapall --noerror  --all+ --user=root 'ipmitool lan print 3'
+exit
+
+#Find direct to Avamar backups (with DD)
+bin/ALL_clients.sh
+export DATEX=$(date +%Y%m%d)
+cat  ALL_clients.txt | while read client ;   do    echo $client;   mccli backup show --verbose --name=$client | grep Avamar  | while read  DATE TIME ZONE LABEL SIZE  OTHER;    do    echo "BACKUP= $DATE $TIME $ZOME $LABEL $SIZE $OTHER";       echo "mccli backup delete  --labelNum=$LABEL --force=true --created=$DATE  --name=$client";      done;  done | tee abc_backuptoAvamar_$DATEX.txt
+grep BACKUP abc_backuptoAvamar_$DATEX.txt 
+#This will show what replicated and direct to Avamar
+mccli client show --recursive=true --replicated=true| sed '1,3d'| while read client domain x;    do     echo $domain/$client;    mccli backup show --verbose --name=$domain/$client | grep Avamar  | while read  DATE TIME ZONE LABEL SIZE  OTHER;    do    echo "$domain/$client BACKUP= $DATE $TIME $ZOME $LABEL $SIZE $OTHER";        echo "mccli backup delete  --labelNum=$LABEL --force=true --created=$DATE  --name=$client";       done;   done | tee abc_backuptoAvamar_$DATEX.txt
+
+#Find backups with no expiration date
+bin/ALL_clients.sh
+export DATEX=$(date +%Y%m%d)
+cat  ALL_clients.txt |  while read client ;
+  do
+    mccli backup show --verbose --name=$client  > abc$$_noenddate.txt
+  COUNT=$(grep 'No end date' abc$$_noenddate.txt | wc -l)
+  if [  $COUNT =  0 ]; then
+      :
+   else
+     echo $client
+     grep 'No end date' abc$$_noenddate.txt
+  fi
+done | tee abc_noenddate_$DATEX.txt
+rm  abc$$_noenddate.txt
+
+#Firewall
+sudo service avfirewall stop
+sudo service avfirewall start
+sudo service avfirewall status
+
 #Garbage collection
 avmaint garbagecollect --maxtime=14400 --ava
+#Check for backups in progress
+dumpmaintlogs --types=gc --days=30 | grep 'in progress'
+#GC History, last 7 days
+dumpmaintlogs --types=gc --days=7 | grep "passes=" | awk '{print $1,$12,$13,$15}'
+#Avamar 7:
+dumpmaintlogs --types=gc --days=7 | grep "passes=" | awk '{print $1,$12,$14,$15,$17}'
+#Skipped hashes check:
+dumpmaintlogs --types=gc --days=30|grep passes|cut -d " " -f1,10,14,15,17
+
+#HFS Check
+avmaint hfscheck --rolling --ava
+#(Full)
+avmaint hfscheck --ava
+avmaint sched resume hfscheck –ava
+#HFS Check History, 30 days
+dumpmaintlogs --types=hfscheck --days=30 | grep "elapsed-time=" | awk '{print $1,$12,$19}'
+#with end time
+dumpmaintlogs --types=hfscheck --days=30 | grep "elapsed-time=" | awk '{print $1,$12,$14,$19}'
 
 #Installing Avamar Client Installers from SFTP - go to the appropriate directory:
 cd /usr/local/avamar/src
@@ -115,6 +264,13 @@ cd /data01/avamar/repo/packages
 #Grab multiple files with
 mget *
 
+#IPs for All Nodes
+mapall --all+ --noerror 'ifconfig | grep "inet "'
+#IPs for RMM 
+mapall --noerror --user=root 'ipmitool lan print 1 | grep "IP Address "'
+
+#Java check - 60 seconds
+while true; do   date ;   ps -ef | grep -i java | wc -l; echo ..; sleep 60; done
 #Java issues - as root, remove java_pid#####.hprof from /usr/local/avamar
 
 #mapall prerequisite - loading the keys
@@ -162,6 +318,18 @@ done
 
 #Sourcing the Avamar functions script
 source /home/admin/bin/avamar_functions.sh
+
+#Time synchronization issues
+su – dpn
+asktime
+#Reference other Avamar grids for correct ntp servers
+
+#Unacknowledged events
+mccli event show --unack=true|more
+
+#Viewuser password to default
+psql -p 5555 mcdb
+ALTER USER viewuser WITH PASSWORD 'viewuser1'; \q
 
 #Zip an entire folder
 tar -zcvf archive.tar.gz directory/
