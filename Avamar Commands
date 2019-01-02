@@ -1,16 +1,77 @@
 #Accelerator node login
 ssn 0.accelerator.0
-ssn uphaanptp001
-ssh admin@uphaanptp001
+ssn hostname
+ssh admin@hostname
 
 #Accelerator node version
 sudo service avagent status
+
+#Add single user to Avamar grid
+mccli user add --authenticator=Axion --client-domain=/ --name=avamaruser --password=abc123 --password-confirm=abc123 --role=Administrator
+
+#Add multiple users to Avamar grid - pre-req. Add names of users to be used in below command
+vi USER
+for i in $(cat USER); do  mccli user add --authenticator=Axion --client-domain=/ --name=$i --password=abc123 --password-confirm=abc123 --role=BackupRestoreOperator; done
+\
+
+#All Backup Jobs
+backuphistory () { for i in `[ -f $* ] && cat $* || echo  $*`; do echo "********* $i *********"; /usr/local/avamar/bin/mccli backup show --verbose --name=$i|sed '1,1d'; done; }
+backuphistory anyfilename > clients_backup_history.txt
+
+#Avtar.cmd file
+--debug
+--stats
+--status=60
+--nocache
+--verbose
+--x15=16, system state backup exclusions to make it smaller, speed up backup. The “x15=16″ command will cut out windows/system32 and reduce the size of the system state, Avamar has a bug which will fail the system state with a code-3 tape block error if the system state exceeds a fraction value. This command is safe so long as you are capturing the windows/system32 folder in the file system backup.
+--x29=14, The folder "CurrentVersion" is an NTFS link pointing to the folder <Version number> (e.g. "12.1.671.4971.105") under c:\program files\symantec\smantec endpoint protection\<Version Number> The flag ignores NTFS link and backs up the folders as they are.
+--x13=1, skip extended attributes (for files) check in HPUX 
+--x25=-1, enable debugging for Avamar to DD backups
+--ddr-index=1, Writing to Avamar with a Data Domain backend
+-ddr=true, Writing to Avamar with a Data Domain backend
+--server=abc.xyz
+
+#Backend Capacity Report (entire Avamar grid)
+backendreport --include=/
+backendreport --include=/clientname
+
+#Backup History for Multiple Clients
+source /home/admin/bin/avamar_functions.sh
+cl
+ls -alt | more
+cat Clients_20150519113020.txt| grep /CSCi/ > output.txt
+his output.txt
+
+#Backup Report List and Retentions
+mccli backup show --verbose --name=
+
+#Dataset modifications
+#Windows 2003 system state backup and logs to alternate drive
+systemstatefile=D:\avamar\systemstate.bkf
+vardir=D:\avamar\var
 
 #mapall prerequisite - loading the keys
 ssh-agent bash
 ssh-add ~/.ssh/dpnid 
 
+#Proxycp.jar
+chmod +x proxycp.jar
+sudo java -jar ./proxycp.jar --listbackups --domain / --after 1970-01-01 --before 2017-04-02 > ALLBACKUPS.txt
+cat ALLBACKUPS.txt
+avmgr getl --path=/
+avmgr getl --path=/MC_DELETED
+avmgr getb --path=/MC_DELETED/ydluag12017.03.29.11.33.39
+sudo java -jar ./proxycp.jar --listbackups --domain /MC_DELETED --after 1970-01-01 --before 2017-04-02 > ALLBACKUPS_DEL.txt
+avmgr getl --path=/
+sudo java -jar ./proxycp.jar --listbackups --domain /REPLICATE --after 1970-01-01 --before 2017-04-02 > ALLBACKUPS_REPLICATE.txt
+cat ALLBACKUPS_DEL.txt
+cat ALLBACKUPS_REPLICATE.txt
+ssh-add -l
+ssh-agent bash
+cat ALLBACKUPS_DEL.txt
+cat ALLBACKUPS_REPLICATE.txt
+sudo ./proxycp.jar --help
+
 #Sourcing the Avamar functions script
 source /home/admin/bin/avamar_functions.sh
-
-
