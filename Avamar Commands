@@ -1,0 +1,16 @@
+#Accelerator node login
+ssn 0.accelerator.0
+ssn uphaanptp001
+ssh admin@uphaanptp001
+
+#Accelerator node version
+sudo service avagent status
+
+#mapall prerequisite - loading the keys
+ssh-agent bash
+ssh-add ~/.ssh/dpnid 
+
+#Sourcing the Avamar functions script
+source /home/admin/bin/avamar_functions.sh
+
+
