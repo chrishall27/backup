@@ -75,6 +75,10 @@ cd /usr/local/avamar/var/mc/server_data/prefs
 cp mcserver.xml x-mcserver.xml-backup
 vi mcserver.xml
 
+#Crontab
+sudo crontab -e -u admin
+sudo crontab -l -u admin
+
 grep -i "restores" /usr/local/avamar/var/mc/server_data/prefs/mcserver.xml
 #<entry key="admin_can_direct_restores" value="true" />
 #<entry key="restore_admin_can_direct_restores" value="true" /> 
@@ -84,7 +88,7 @@ dpnctl start mcs
 dpnctl start sched
 dpnctl status  
 
-#Copy file from NDC to CDC (from destination)
+#Copy file from one site to another (from destination)
 scp admin@avamarhostname-repl:/usr/local/avamar/src/Avamar.zip Avamar.zip .
 mv /usr/local/avamar/src/xyz.avp /data01/avamar/repo/packages
 
