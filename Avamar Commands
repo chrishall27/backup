@@ -84,6 +84,13 @@ dpnctl start mcs
 dpnctl start sched
 dpnctl status  
 
+#Copy file from NDC to CDC (from destination)
+scp admin@avamarhostname-repl:/usr/local/avamar/src/Avamar.zip Avamar.zip .
+mv /usr/local/avamar/src/xyz.avp /data01/avamar/repo/packages
+
+#Copy folder with files to another folder in Unix/Linux? 
+cp -R source destination
+
 #Dataset modifications
 #Windows 2003 system state backup and logs to alternate drive
 systemstatefile=D:\avamar\systemstate.bkf
@@ -149,6 +156,11 @@ echo "telnet to port $PAGEPORT is dead"
 fi
 done  
 
-
 #Sourcing the Avamar functions script
 source /home/admin/bin/avamar_functions.sh
+
+#Zip an entire folder
+tar -zcvf archive.tar.gz directory/
+cd /data01/avamar/src
+cp -R downloads downloads2
+tar -zcvf downloads.tar.gz downloads2
